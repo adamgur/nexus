@@ -1,93 +1,165 @@
-# nexus
+# 🚀 AKS Monitoring with Prometheus and Alertmanager
 
+## **📌 1. Prerequisites**
+Before starting, ensure you have the following CLI tools installed on your system:
 
+- **Azure CLI (`az`)** – Used to interact with Azure services.
+- **Kubectl (`kubectl`)** – Used to interact with the Kubernetes cluster.
+- **Helm (`helm`)** – Used to manage Kubernetes applications.
 
-## Getting started
+## **📌 2. Login to Your Azure Account**
+Before deploying the AKS cluster, you need to authenticate with Azure.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/shalevatias/nexus.git
-git branch -M main
-git push -uf origin main
+### **🔹 Step 1: Log in to Azure**
+Run the following command to log in to your Azure account:
+```bash
+az login
 ```
 
-## Integrate with your tools
+## **📌 3. Navigate to the Terraform Directory**
+Once logged into Azure, move to the directory where your Terraform files (`main.tf` and `variables.tf`) are located.
 
-- [ ] [Set up project integrations](https://gitlab.com/shalevatias/nexus/-/settings/integrations)
+Use the following command to navigate to the directory containing your Terraform configuration files:
+```bash
+cd terraform/
+```
 
-## Collaborate with your team
+## **📌 4. Initialize and Deploy the AKS Cluster Using Terraform**
+Now that you're inside the Terraform directory, you need to **initialize Terraform**, **review the planned changes**, and **apply the configuration** to create the AKS cluster.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### **🔹 Step 1: Initialize Terraform**
+Before running Terraform, initialize it with the following command:
+```bash
+terraform init
+```
+This command initializes Terraform by downloading the necessary provider plugins and setting up the backend for storing the Terraform state.
 
-## Test and Deploy
+### **🔹 Step 2: Review the Terraform Plan**
+```bash
+terraform plan
+```
+This command creates an execution plan, showing what Terraform will change in the infrastructure before applying any modifications.
 
-Use the built-in continuous integration in GitLab.
+### **🔹 Step 3: Apply the Terraform Configuration**
+```bash
+terraform apply
+```
+This command applies the configuration defined in your Terraform files, provisioning the necessary resources in your Azure environment.
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+> ⚠️ **Important Notes About `terraform apply`**
 
-***
+1. **ACR Name Must Be Globally Unique**  
+   When creating an Azure Container Registry (`azurerm_container_registry`), the `name` must be **globally unique across all Azure subscriptions**.  
+   If you get an error like `The registry name is already in use`, change the name to something more unique, for example:
+   ```hcl
+   name = "${var.cluster_name}acr12345"
 
-# Editing this README
+2. **You Must Provide Your Azure Subscription ID**
+    Make sure to set the subscription_id variable in your terraform.tfvars or directly in your main.tf file.
+    You can retrieve your Azure Subscription ID using:
+    ```bash
+    az account show --query id --output tsv
+    ```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## **📌 4.5 Connect to the AKS Cluster**
+Before deploying ArgoCD, you need to connect to the AKS cluster.
 
-## Suggestions for a good README
+### **🔹 Step 1: Retrieve AKS Credentials**
+Use the following command to authenticate with your AKS cluster and configure `kubectl` to use the correct context:
+```bash
+az aks get-credentials --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME --overwrite-existing
+```
+This command retrieves the credentials for your AKS cluster and updates your `kubeconfig` file. The `--overwrite-existing` flag ensures that if any previous credentials exist, they are replaced with the new ones.
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## **📌 5. Deploy ArgoCD**
+After the AKS cluster is deployed, we will install **ArgoCD** to manage Kubernetes applications.
 
-## Name
-Choose a self-explaining name for your project.
+### **🔹 Step 1: Create the ArgoCD Namespace**
+Before installing ArgoCD, create a dedicated namespace:
+```bash
+kubectl create namespace argocd
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### **🔹 Step 2: Install ArgoCD**
+Now, install ArgoCD by applying its official manifest:
+```bash
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+This command deploys all the necessary ArgoCD components, including the API server, controller, and UI, into the `argocd` namespace.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### **🔹 Step 3: Expose the ArgoCD API Server**
+To access the ArgoCD UI externally, update the service type to LoadBalancer:
+```bash
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+```
+This command modifies the ArgoCD server service to expose it via an external load balancer.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### **🔹 Step 4: Find the External IP**
+Retrieve the external IP assigned to the ArgoCD server:
+```bash
+kubectl get svc -n argocd argocd-server
+```
+Use the external IP displayed to access the ArgoCD web UI.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### **🔹 Step 5: Retrieve the ArgoCD Admin Password**
+By default, the username is `admin`, and the password is stored in a Kubernetes secret.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+To log in, you need the initial admin password:
+```bash
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
+```
+This command fetches and decodes the default admin password, allowing you to log in to the ArgoCD UI.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### **🔹 Step 6: Deploy Application Configuration with ArgoCD**
+Once ArgoCD is installed, deploy your application by applying the `application.yaml` file found in the `app/` directory:
+```bash
+kubectl apply -f app/application.yaml
+```
+This command configures ArgoCD to manage your application by creating an ArgoCD `Application` resource, which defines the repository, target cluster, and sync settings for deployment.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## **📌 6. Deploy Monitoring with Prometheus and Alertmanager**
+After deploying ArgoCD, we will set up **Prometheus and Alertmanager** for monitoring the AKS cluster.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### **🔹 Step 1: Navigate to the Monitoring Directory**
+Move to the directory containing monitoring configuration files:
+```bash
+cd app/monitoring
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### **🔹 Step 2: Add the Helm Repository**
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+```
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### **🔹 Step 3: Install Prometheus and Alertmanager**
+Use Helm to install the `kube-prometheus-stack` with a custom values file:
+```bash
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace -f alertmanager-values.yaml
+```
+This values file customizes Alertmanager settings by:
+- Configuring **email notifications** for critical alerts.
+- Defining **multi-channel alert routing** (email + webhook).
+- Ensuring alerts are sent to the appropriate receivers based on severity.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### **🔹 Step 4: Verify the Installation**
+Ensure Prometheus and Alertmanager pods are running:
+```bash
+kubectl get pods -n monitoring
+```
+### **🔹 Step 6: Deploy Cpu Alert**
+```bash
+kubectl apply -f cpu-alert.yaml
+```
+### **🔹 Step 6: Expose Prometheus and Alertmanager**
+Expose Prometheus on port 9090:
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+```
+Once forwarded, you can access Prometheus at: [http://localhost:9090]
 
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Expose Alertmanager on port 9093:
+```bash
+kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-alertmanager 9093:9093
+```
+Once forwarded, you can access Alertmanager at: [http://localhost:9093]
