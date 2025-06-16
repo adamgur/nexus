@@ -42,3 +42,21 @@ resource "azurerm_kubernetes_cluster" "aks" {
 data "azurerm_kubernetes_service_versions" "current" {
   location = var.location
 }
+
+resource "kubernetes_namespace" "production" {
+  metadata {
+    name = "production"
+  }
+}
+
+resource "kubernetes_namespace" "dev" {
+  metadata {
+    name = "dev"
+  }
+}
+
+resource "kubernetes_namespace" "staging" {
+  metadata {
+    name = "staging"
+  }
+}

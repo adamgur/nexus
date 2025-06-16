@@ -14,3 +14,9 @@ output "aks_name" {
   description = "The name of the created AKS cluster"
   value = module.aks_with_acr.aks_name
 }
+
+output "kube_config" {
+  description = "Kubernetes config file for the AKS cluster as a map"
+  value = module.aks_with_acr.kube_config
+  sensitive = true
+}

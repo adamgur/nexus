@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 4.0.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0.0"
+    }
   }
 
 }
@@ -21,4 +25,11 @@ module "aks" {
     kubernetes_version = var.kubernetes_version
     node_count         = var.node_count
     node_vm_size       = var.node_vm_size
+}
+
+provider "kubernetes" {
+  host                   = module.aks.kube_config["host"]
+  client_certificate     = base64decode(module.aks.kube_config["client_certificate"])
+  client_key             = base64decode(module.aks.kube_config["client_key"])
+  cluster_ca_certificate = base64decode(module.aks.kube_config["cluster_ca_certificate"])
 }
