@@ -13,7 +13,7 @@ Before deploying the AKS cluster, you need to authenticate with Azure.
 ### **🔹 Step 1: Log in to Azure**
 Run the following command to log in to your Azure account:
 ```bash
-az login
+az login --allow-no-subscriptions
 ```
 
 ## **📌 3. Navigate to the Terraform Directory**
