@@ -33,6 +33,8 @@ module "aks_with_acr" {
   kubernetes_version = var.kubernetes_version != "" ? var.kubernetes_version : data.azurerm_kubernetes_service_versions.current.latest_version
   client_id          = module.ServicePrincipal.client_id
   client_secret      = module.ServicePrincipal.client_secret
+  subscription_id = var.subscription_id
+
 }
 
 data "azurerm_kubernetes_service_versions" "current" {

@@ -16,3 +16,8 @@ variable "kubernetes_version" {
   description = "The Kubernetes version to use for the cluster"
   type        = string
 }
+
+variable "subscription_id" {
+  description = "Azure Subscription ID"
+  type        = string
+}
