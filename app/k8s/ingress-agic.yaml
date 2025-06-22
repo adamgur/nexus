@@ -4,11 +4,12 @@ metadata:
   name: nginx-ingress-agic
   annotations:
     kubernetes.io/ingress.class: azure/application-gateway # This annotation links to AGIC
-    # Optional: If you want to force HTTPS redirection
-    # appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    # Optional AGIC-specific annotations:
+    appgw.ingress.kubernetes.io/ssl-redirect: "true" # Forces HTTP to HTTPS redirection
+    # appgw.ingress.kubernetes.io/appgw-ssl-certificate: "my-cert-name" # If you pre-upload a cert to App Gateway
 spec:
   rules:
-  - host: "{{ .Values.ingressHost }}" # <--- This is the placeholder for your dynamic domain
+  - host: "{{ .Values.ingressHost }}" 
     http:
       paths:
       - path: /
@@ -17,4 +18,4 @@ spec:
           service:
             name: nginx-service 
             port:
-              number: 80
+              number: 80 

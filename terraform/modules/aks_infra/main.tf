@@ -1,6 +1,10 @@
 resource "azurerm_resource_group" "aks" {
   name     = "${var.cluster_name}-rg"
   location = var.location
+  tags = {
+    Environment = "shared-infra"
+    Project     = "Nexus"
+  }
 }
 
 module "ServicePrincipal" {
