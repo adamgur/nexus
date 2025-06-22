@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://gitlab.com/shalevatias/nexus.git
+    repoURL: https://github.com/adamgur/nexus.git
     targetRevision: HEAD
     path: app/k8s
   destination:

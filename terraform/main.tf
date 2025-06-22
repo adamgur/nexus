@@ -6,18 +6,6 @@ terraform {
       source  = "hashicorp/azurerm"
       version = ">= 4.0.0"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = ">= 2.0.0"
-    }
-    helm = {
-      source  = "hashicorp/helm"
-      version = ">= 2.5.0"
-    }
-    kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = ">= 1.14.0"
-    }
   }
 
 }
@@ -35,21 +23,7 @@ module "aks" {
     node_vm_size       = var.node_vm_size
 }
 
-provider "kubernetes" {
-  host                   = module.aks.kube_config["host"]
-  client_certificate     = base64decode(module.aks.kube_config["client_certificate"])
-  client_key             = base64decode(module.aks.kube_config["client_key"])
-  cluster_ca_certificate = base64decode(module.aks.kube_config["cluster_ca_certificate"])
-}
 
-provider "helm" {
-  kubernetes {
-    host                   = module.aks.kube_config["host"]
-    client_certificate     = base64decode(module.aks.kube_config["client_certificate"])
-    client_key             = base64decode(module.aks.kube_config["client_key"])
-    cluster_ca_certificate = base64decode(module.aks.kube_config["cluster_ca_certificate"])
-  }
-}
 
 provider "kubectl" {
   host                   = module.aks.kube_config["host"]
