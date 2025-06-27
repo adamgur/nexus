@@ -46,29 +46,3 @@ resource "azurerm_kubernetes_cluster" "aks" {
 data "azurerm_kubernetes_service_versions" "current" {
   location = var.location
 }
-
-# resource "kubernetes_namespace" "production" {
-#   metadata {
-#     name = "production"
-#   }
-# }
-
-# resource "kubernetes_namespace" "dev" {
-#   metadata {
-#     name = "dev"
-#   }
-# }
-
-# resource "kubernetes_namespace" "staging" {
-#   metadata {
-#     name = "staging"
-#   }
-# }
-
-# Commented out - using provider configuration from root module
-# provider "kubernetes" {
-#   host                   = azurerm_kubernetes_cluster.aks.kube_config[0].host
-#   client_certificate     = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_certificate)
-#   client_key             = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].client_key)
-#   cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.aks.kube_config[0].cluster_ca_certificate)
-# }

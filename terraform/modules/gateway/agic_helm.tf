@@ -1,7 +1,6 @@
 resource "helm_release" "agic_controller" {
   name       = "ingress-azure"
-  chart      = "${path.module}/../../../ingress-azure-1.8.1.tgz"  # Use the local chart file with path.module
-  namespace  = "kube-system" # Recommended namespace for AGIC
+  chart      = "${path.module}/../../../ingress-azure-1.8.1.tgz"  
 
   set = [
     {
@@ -21,7 +20,7 @@ resource "helm_release" "agic_controller" {
       value = "true"
     },
     {
-      name  = "aksClusterConfiguration.resourceGroup" # This refers to the RG of the AKS cluster
+      name  = "aksClusterConfiguration.resourceGroup" 
       value = var.resource_group_name
     },
     {
@@ -30,15 +29,15 @@ resource "helm_release" "agic_controller" {
     },
     {
       name = "aksClusterConfiguration.provideSslCertificates"
-      value = "true" # Set to true if you manage SSL certs directly via AGIC
+      value = "true" 
     },
     {
       name = "appgw.shared"
-      value = "false" # Set to true if you want to share the Application Gateway with other ingresses (advanced)
+      value = "false" 
     },
     {
       name = "rbac.enabled"
-      value = "true" # Recommended for production deployments
+      value = "true"
     }
   ]
 
@@ -47,5 +46,4 @@ resource "helm_release" "agic_controller" {
   ]
 }
 
-# Data source to retrieve current Azure subscription ID
 data "azurerm_subscription" "current" {}
