@@ -8,12 +8,12 @@ output "aks_subnet_id" {
   description = "The ID of the subnet dedicated for AKS."
 }
 
-output "key_vault_uri" {
-  value       = azurerm_key_vault.main_kv.vault_uri
-  description = "The URI of the main Azure Key Vault."
-}
+# output "key_vault_uri" {
+#   value       = azurerm_key_vault.main_kv.vault_uri
+#   description = "The URI of the main Azure Key Vault."
+# }
 
-output "key_vault_name" {
-  value       = azurerm_key_vault.main_kv.name
-  description = "The name of the main Azure Key Vault."
-}
+# output "key_vault_name" {
+#   value       = azurerm_key_vault.main_kv.name
+#   description = "The name of the main Azure Key Vault."
+# }

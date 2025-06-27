@@ -1,73 +1,86 @@
+terraform {
+  required_providers {
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = ">= 3.0.0"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = ">= 2.0.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.0.0"
+    }
+  }
+}
+
 resource "azurerm_resource_group" "aks" {
-  name     = "${var.cluster_name}-rg"
+  name     = var.resource_group_name
   location = var.location
   tags = {
-    Environment = "shared-infra"
+    Environment = var.environment
     Project     = "Nexus"
   }
 }
 
 resource "azurerm_virtual_network" "main_vnet" {
   name                = "${var.cluster_name}-vnet"
-  resource_group_name = azurerm_resource_group.main_rg.name
+  resource_group_name = var.resource_group_name
   location            = var.location
   address_space       = [var.vnet_address_space]
   tags = {
-    Environment = "shared-infra"
+    Environment = var.environment
   }
 }
 
-# Subnet for the AKS Cluster
 resource "azurerm_subnet" "aks_subnet" {
   name                 = "${var.cluster_name}-aks-subnet"
-  resource_group_name  = azurerm_resource_group.main_rg.name
+  resource_group_name  = var.resource_group_name
   virtual_network_name = azurerm_virtual_network.main_vnet.name
   address_prefixes     = [var.aks_subnet_cidr]
-  tags = {
-    Environment = "shared-infra"
-  }
-}
-
-# Public IP for the Azure Application Gateway
-resource "azurerm_public_ip" "agic_public_ip" {
-  name                = "${var.cluster_name}-appgw-pip"
-  resource_group_name = azurerm_resource_group.main_rg.name
-  location            = var.location
-  allocation_method   = "Static"
-  sku                 = "Standard"
-  tags = {
-    Environment = "shared-infra"
-  }
-}
-
-# Dedicated subnet for the Azure Application Gateway
-resource "azurerm_subnet" "agic_subnet" {
-  name                 = "${var.cluster_name}-appgw-subnet"
-  resource_group_name  = azurerm_resource_group.main_rg.name
-  virtual_network_name = azurerm_virtual_network.main_vnet.name
-  address_prefixes     = [var.appgw_subnet_cidr]
   service_endpoints    = ["Microsoft.Web", "Microsoft.Storage"]
   delegation {
     name = "delegation"
     service_delegation {
-      name    = "Microsoft.Network/virtualNetworks/subnets/delegations"
+      name    = "Microsoft.ContainerService/managedClusters"
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
+}
+
+resource "azurerm_public_ip" "agic_public_ip" {
+  name                = "${var.cluster_name}-appgw-pip"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
   tags = {
-    Environment = "shared-infra"
+    Environment = var.environment
   }
 }
 
-# Azure Application Gateway
+resource "azurerm_subnet" "agic_subnet" {
+  name                 = "${var.cluster_name}-appgw-subnet"
+  resource_group_name  = var.resource_group_name
+  virtual_network_name = azurerm_virtual_network.main_vnet.name
+  address_prefixes     = [var.appgw_subnet_cidr]
+  service_endpoints    = ["Microsoft.Web", "Microsoft.Storage"]
+}
+
 resource "azurerm_application_gateway" "agic_gateway" {
   name                = "${var.cluster_name}-app-gateway"
-  resource_group_name = azurerm_resource_group.main_rg.name
+  resource_group_name = var.resource_group_name
   location            = var.location
 
   sku {
     name = "Standard_v2"
     tier = "Standard_v2"
+  }
+
+  autoscale_configuration {
+  min_capacity = 2
+  max_capacity = 4
   }
 
   gateway_ip_configuration {
@@ -115,9 +128,10 @@ resource "azurerm_application_gateway" "agic_gateway" {
     http_listener_name         = "httpListener"
     backend_address_pool_name  = "appGatewayBackendPool"
     backend_http_settings_name = "appGatewayBackendHttpSettings"
+    priority                   = 100 
   }
 
   tags = {
-    Environment = "shared-infra"
+    Environment = var.environment
   }
 }

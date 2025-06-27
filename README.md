@@ -1,165 +1,276 @@
-# 🚀 AKS Monitoring with Prometheus and Alertmanager
+# 🚀 Azure Kubernetes Service (AKS) with Application Gateway Ingress Controller (AGIC)
 
-## **📌 1. Prerequisites**
-Before starting, ensure you have the following CLI tools installed on your system:
+This project deploys a complete AKS infrastructure with Azure Application Gateway Ingress Controller, monitoring, and GitOps capabilities.
 
-- **Azure CLI (`az`)** – Used to interact with Azure services.
-- **Kubectl (`kubectl`)** – Used to interact with the Kubernetes cluster.
-- **Helm (`helm`)** – Used to manage Kubernetes applications.
+## **🏗️ Architecture Overview**
 
-## **📌 2. Login to Your Azure Account**
-Before deploying the AKS cluster, you need to authenticate with Azure.
+The infrastructure includes:
+- **AKS Cluster** with managed identity and RBAC enabled
+- **Azure Container Registry (ACR)** for container images
+- **Azure Application Gateway** with AGIC for ingress management  
+- **Virtual Network** with dedicated subnets for AKS and Application Gateway
+- **Monitoring Stack** with Prometheus and Alertmanager
+- **GitOps** with ArgoCD for application deployment
 
-### **🔹 Step 1: Log in to Azure**
-Run the following command to log in to your Azure account:
+## **📌 Prerequisites**
+
+Before starting, ensure you have the following CLI tools installed:
+
+- **Azure CLI (`az`)** – For Azure service interaction
+- **Terraform (`>= 1.0.0`)** – For infrastructure provisioning
+- **Kubectl** – For Kubernetes cluster management
+- **Helm (`>= 3.0`)** – For Kubernetes application management
+
+## **📌 Getting Started**
+
+### **🔹 Step 1: Azure Authentication**
+Log in to your Azure account:
 ```bash
-az login --allow-no-subscriptions
+az login
 ```
 
-## **📌 3. Navigate to the Terraform Directory**
-Once logged into Azure, move to the directory where your Terraform files (`main.tf` and `variables.tf`) are located.
+Get your subscription ID:
+```bash
+az account show --query id --output tsv
+```
 
-Use the following command to navigate to the directory containing your Terraform configuration files:
+### **� Step 2: Configure Variables**
+Update the `terraform.tfvars` file with your specific values:
+```hcl
+subscription_id     = "your-subscription-id"
+cluster_name        = "nexus-cluster"
+resource_group_name = "Nexus"
+location           = "West Europe"
+environment        = "Shared"
+acr_name           = "nexusacr20250627"  # Must be globally unique
+```
+
+### **🔹 Step 3: Deploy Infrastructure**
+Navigate to the terraform directory and deploy:
 ```bash
 cd terraform/
-```
-
-## **📌 4. Initialize and Deploy the AKS Cluster Using Terraform**
-Now that you're inside the Terraform directory, you need to **initialize Terraform**, **review the planned changes**, and **apply the configuration** to create the AKS cluster.
-
-### **🔹 Step 1: Initialize Terraform**
-Before running Terraform, initialize it with the following command:
-```bash
 terraform init
-```
-This command initializes Terraform by downloading the necessary provider plugins and setting up the backend for storing the Terraform state.
-
-### **🔹 Step 2: Review the Terraform Plan**
-```bash
 terraform plan
-```
-This command creates an execution plan, showing what Terraform will change in the infrastructure before applying any modifications.
-
-### **🔹 Step 3: Apply the Terraform Configuration**
-```bash
 terraform apply
 ```
-This command applies the configuration defined in your Terraform files, provisioning the necessary resources in your Azure environment.
 
-> ⚠️ **Important Notes About `terraform apply`**
+This will create:
+- AKS cluster with 3 nodes (Standard_D2s_v3)
+- Azure Container Registry
+- Virtual Network with subnets
+- Azure Application Gateway
+- AGIC (Azure Application Gateway Ingress Controller)
+- CSI Secrets Store Provider for Azure Key Vault integration
 
-1. **ACR Name Must Be Globally Unique**  
-   When creating an Azure Container Registry (`azurerm_container_registry`), the `name` must be **globally unique across all Azure subscriptions**.  
-   If you get an error like `The registry name is already in use`, change the name to something more unique, for example:
-   ```hcl
-   name = "${var.cluster_name}acr12345"
-
-2. **You Must Provide Your Azure Subscription ID**
-    Make sure to set the subscription_id variable in your terraform.tfvars or directly in your main.tf file.
-    You can retrieve your Azure Subscription ID using:
-    ```bash
-    az account show --query id --output tsv
-    ```
-
-## **📌 4.5 Connect to the AKS Cluster**
-Before deploying ArgoCD, you need to connect to the AKS cluster.
-
-### **🔹 Step 1: Retrieve AKS Credentials**
-Use the following command to authenticate with your AKS cluster and configure `kubectl` to use the correct context:
+### **🔹 Step 4: Connect to AKS Cluster**
+Configure kubectl to connect to your new cluster:
 ```bash
-az aks get-credentials --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME --overwrite-existing
+az aks get-credentials --resource-group Nexus --name nexus-cluster --overwrite-existing
 ```
-This command retrieves the credentials for your AKS cluster and updates your `kubeconfig` file. The `--overwrite-existing` flag ensures that if any previous credentials exist, they are replaced with the new ones.
 
-## **📌 5. Deploy ArgoCD**
-After the AKS cluster is deployed, we will install **ArgoCD** to manage Kubernetes applications.
+Verify connection:
+```bash
+kubectl get nodes
+kubectl get pods -n kube-system
+```
 
-### **🔹 Step 1: Create the ArgoCD Namespace**
-Before installing ArgoCD, create a dedicated namespace:
+## **📌 Application Gateway & Ingress**
+
+### **🔹 AGIC Configuration**
+The Application Gateway Ingress Controller is automatically deployed and configured to:
+- Watch for Kubernetes Ingress resources
+- Automatically configure Azure Application Gateway rules
+- Handle SSL termination and routing
+- Provide Web Application Firewall (WAF) capabilities
+
+### **🔹 Application Gateway Public IP**
+Get the public IP of your Application Gateway:
+```bash
+az network public-ip show --resource-group Nexus --name nexus-cluster-appgw-pip --query ipAddress --output tsv
+```
+
+### **🔹 Deploying Applications with Ingress**
+Create applications with Ingress resources that AGIC will automatically handle:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-app-ingress
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+  - host: myapp.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: my-app-service
+            port:
+              number: 80
+```
+
+## **📌 ArgoCD Deployment**
+
+### **🔹 Step 1: Create ArgoCD Namespace**
 ```bash
 kubectl create namespace argocd
 ```
 
 ### **🔹 Step 2: Install ArgoCD**
-Now, install ArgoCD by applying its official manifest:
 ```bash
 kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
-This command deploys all the necessary ArgoCD components, including the API server, controller, and UI, into the `argocd` namespace.
 
-### **🔹 Step 3: Expose the ArgoCD API Server**
-To access the ArgoCD UI externally, update the service type to LoadBalancer:
-```bash
-kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+### **🔹 Step 3: Expose ArgoCD via Ingress**
+Instead of using LoadBalancer, create an Ingress resource for ArgoCD:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-ingress
+  namespace: argocd
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+    appgw.ingress.kubernetes.io/backend-protocol: "HTTPS"
+spec:
+  rules:
+  - host: argocd.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              number: 443
 ```
-This command modifies the ArgoCD server service to expose it via an external load balancer.
 
-### **🔹 Step 4: Find the External IP**
-Retrieve the external IP assigned to the ArgoCD server:
-```bash
-kubectl get svc -n argocd argocd-server
-```
-Use the external IP displayed to access the ArgoCD web UI.
-
-### **🔹 Step 5: Retrieve the ArgoCD Admin Password**
-By default, the username is `admin`, and the password is stored in a Kubernetes secret.
-
-To log in, you need the initial admin password:
+### **🔹 Step 4: Get ArgoCD Admin Password**
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d && echo
 ```
-This command fetches and decodes the default admin password, allowing you to log in to the ArgoCD UI.
 
-### **🔹 Step 6: Deploy Application Configuration with ArgoCD**
-Once ArgoCD is installed, deploy your application by applying the `application.yaml` file found in the `app/` directory:
+### **🔹 Step 5: Deploy Applications**
 ```bash
 kubectl apply -f app/application.yaml
 ```
-This command configures ArgoCD to manage your application by creating an ArgoCD `Application` resource, which defines the repository, target cluster, and sync settings for deployment.
 
-## **📌 6. Deploy Monitoring with Prometheus and Alertmanager**
-After deploying ArgoCD, we will set up **Prometheus and Alertmanager** for monitoring the AKS cluster.
+## **📌 Monitoring with Prometheus and Alertmanager**
 
-### **🔹 Step 1: Navigate to the Monitoring Directory**
-Move to the directory containing monitoring configuration files:
-```bash
-cd app/monitoring
-```
-
-### **🔹 Step 2: Add the Helm Repository**
+### **🔹 Step 1: Add Helm Repository**
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 ```
 
-### **🔹 Step 3: Install Prometheus and Alertmanager**
-Use Helm to install the `kube-prometheus-stack` with a custom values file:
+### **🔹 Step 2: Install Monitoring Stack**
 ```bash
-helm upgrade --install prometheus prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace -f alertmanager-values.yaml
+cd app/monitoring
+helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring --create-namespace \
+  -f alertmanager-values.yaml
 ```
-This values file customizes Alertmanager settings by:
-- Configuring **email notifications** for critical alerts.
-- Defining **multi-channel alert routing** (email + webhook).
-- Ensuring alerts are sent to the appropriate receivers based on severity.
 
-### **🔹 Step 4: Verify the Installation**
-Ensure Prometheus and Alertmanager pods are running:
-```bash
-kubectl get pods -n monitoring
-```
-### **🔹 Step 6: Deploy Cpu Alert**
+### **🔹 Step 3: Deploy CPU Alerts**
 ```bash
 kubectl apply -f cpu-alert.yaml
 ```
-### **🔹 Step 6: Expose Prometheus and Alertmanager**
-Expose Prometheus on port 9090:
-```bash
-kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
-```
-Once forwarded, you can access Prometheus at: [http://localhost:9090]
 
-Expose Alertmanager on port 9093:
-```bash
-kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-alertmanager 9093:9093
+### **🔹 Step 4: Access Monitoring UIs via Ingress**
+Create Ingress resources for Prometheus and Alertmanager:
+
+```yaml
+# Prometheus Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prometheus-ingress
+  namespace: monitoring
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+  - host: prometheus.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: prometheus-kube-prometheus-prometheus
+            port:
+              number: 9090
 ```
-Once forwarded, you can access Alertmanager at: [http://localhost:9093]
+
+## **� Troubleshooting**
+
+### **🔹 Common Issues**
+
+1. **ACR Name Conflicts**: The ACR name must be globally unique. If you get naming conflicts, update the `acr_name` variable in `terraform.tfvars`.
+
+2. **AGIC Pod Issues**: Check AGIC logs:
+   ```bash
+   kubectl logs -n kube-system deployment/ingress-azure
+   ```
+
+3. **Application Gateway Configuration**: Verify AGIC is managing the Application Gateway:
+   ```bash
+   kubectl get ingress --all-namespaces
+   ```
+
+4. **Network Connectivity**: Ensure your Application Gateway subnet and AKS subnet don't overlap.
+
+### **� Useful Commands**
+
+```bash
+# Check all ingress resources
+kubectl get ingress --all-namespaces
+
+# Check AGIC status
+kubectl get pods -n kube-system -l app=ingress-azure
+
+# View Application Gateway configuration
+az network application-gateway show --resource-group Nexus --name nexus-cluster-app-gateway
+
+# Check Helm releases
+helm list --all-namespaces
+```
+
+## **� Clean Up**
+
+To destroy all resources:
+```bash
+terraform destroy
+```
+
+## **📌 Architecture Components**
+
+| Component | Purpose | Access Method |
+|-----------|---------|---------------|
+| AKS Cluster | Kubernetes orchestrator | kubectl |
+| Application Gateway | L7 load balancer & WAF | Public IP via AGIC |
+| AGIC | Ingress controller | Automatic (watches Ingress resources) |
+| ACR | Container registry | Integrated with AKS |
+| Prometheus | Metrics collection | Ingress or port-forward |
+| Alertmanager | Alert routing | Ingress or port-forward |
+| ArgoCD | GitOps CD | Ingress or port-forward |
+
+---
+
+## **🎯 What's Deployed**
+
+✅ **AKS Cluster** with managed identity  
+✅ **Azure Application Gateway** with AGIC  
+✅ **Azure Container Registry**  
+✅ **Virtual Network** with proper subnets  
+✅ **CSI Secrets Store Provider** for Key Vault integration  
+✅ **Monitoring stack** ready for deployment  
+✅ **GitOps** ready with ArgoCD  
+
+**Public IP**: Your Application Gateway is accessible at the public IP shown in the Azure portal or via `az network public-ip show` command.

@@ -1,0 +1,37 @@
+---
+# Quick test deployment with LoadBalancer service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-nginx
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-nginx
+  template:
+    metadata:
+      labels:
+        app: test-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+
+---
+# LoadBalancer service - gets its own public IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-nginx-lb
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: test-nginx
+  ports:
+  - port: 80
+    targetPort: 80

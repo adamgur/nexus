@@ -4,7 +4,7 @@ variable "cluster_name" {
 
 variable "node_count" {
   description = "Number of nodes in the default node pool"
-  type        = string
+  type        = number
 }
 
 variable "node_vm_size" {
@@ -17,15 +17,9 @@ variable "kubernetes_version" {
   type        = string
 }
 
-variable "rgname" {
-  type        = string
-  description = "resource group name"
-  default = "nexus-rg"
-}
-
 variable "subscription_id" {
-  type    = string
-  default = "d8815ffd-5993-4ba6-8389-ae8d958e1dff"
+  description = "Azure Subscription ID"
+  type        = string
 }
 
 variable "location" {
@@ -37,5 +31,14 @@ variable "location" {
 variable "acr_name" {
   description = "The name of the Azure Container Registry"
   type        = string
-  default     = "nexustestacr1"
+}
+
+variable "resource_group_name" {
+  description = "Name of the resource group."
+  type        = string
+}
+
+variable "environment" {
+  description = "The Azure environment for the resources"
+  type        = string
 }
