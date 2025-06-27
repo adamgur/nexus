@@ -2,3 +2,26 @@
 .terraform*$
 *tfstate*
 node_modules
+
+# Terraform state and backup files
+*.tfstate
+*.tfstate.backup
+
+# Crash log files
+crash.log
+
+# Terraform plan output
+*.tfplan
+
+# Local .terraform directories
+.terraform/
+
+# Sensitive variable files
+*.tfvars
+*.tfvars.json
+terraform/vars.tfvars
+
+# Helm chart tarballs
+*.tgz
+*.tar.gz
+ingress-azure-*.tgz

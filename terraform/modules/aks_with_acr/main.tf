@@ -1,6 +1,10 @@
 resource "azurerm_resource_group" "aks" {
-  name     = "${var.cluster_name}-rg"
+  name     = var.resource_group_name
   location = var.location
+  tags = {
+    Environment = var.environment
+    Project     = "Nexus"
+  }
 }
 
 resource "azurerm_container_registry" "acr" {
@@ -11,14 +15,14 @@ resource "azurerm_container_registry" "acr" {
   admin_enabled       = "false"
 
   tags = {
-    Environment = "Dev"
+    Environment = var.environment
   }
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
   name                = var.cluster_name
   location            = azurerm_resource_group.aks.location
-  resource_group_name = azurerm_resource_group.aks.name
+  resource_group_name = var.resource_group_name
   dns_prefix          = var.cluster_name
 
   default_node_pool {
@@ -35,7 +39,7 @@ resource "azurerm_kubernetes_cluster" "aks" {
    kubernetes_version = var.kubernetes_version
 
   tags = {
-    Environment = "Dev"
+    Environment = var.environment
   }
 }
 

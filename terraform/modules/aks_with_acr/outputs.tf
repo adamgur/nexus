@@ -9,7 +9,7 @@ output "aks_name" {
 }
 
 output "kube_config" {
-  description = "Kubernetes config file for the AKS cluster"
-  value       = azurerm_kubernetes_cluster.aks.kube_config_raw
-  sensitive   = true
+  value = azurerm_kubernetes_cluster.aks.kube_config[0]
+  sensitive = true
+  description = "Raw kubeconfig block from the AKS cluster for use by providers."
 }

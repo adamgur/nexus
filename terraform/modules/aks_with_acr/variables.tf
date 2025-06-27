@@ -28,8 +28,23 @@ variable "acr_name" {
   type        = string
 }
 
+variable "subscription_id" {
+  description = "Azure Subscription ID"
+  type        = string
+}
+
 variable "client_id" {}
 variable "client_secret" {
   type = string
   sensitive = true
+}
+
+variable "resource_group_name" {
+  description = "Name of the resource group."
+  type        = string
+}
+
+variable "environment" {
+  description = "The Azure environment for the resources"
+  type        = string
 }

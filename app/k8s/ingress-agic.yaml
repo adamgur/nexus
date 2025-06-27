@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-agic
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway # This annotation links to AGIC
+    # Optional AGIC-specific annotations:
+    appgw.ingress.kubernetes.io/ssl-redirect: "true" # Forces HTTP to HTTPS redirection
+    # appgw.ingress.kubernetes.io/appgw-ssl-certificate: "my-cert-name" # If you pre-upload a cert to App Gateway
+spec:
+  rules:
+  - host: "{{ .Values.ingressHost }}" 
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-service 
+            port:
+              number: 80 
