@@ -1,0 +1,7 @@
+comments:
+
+1. image and deployment name == git repo name
+2. tags:
+dev
+staging
+production

@@ -1,0 +1,20 @@
+steps:
+1. give permissions using the active directory
+2. terraform
+3. build vault manually
+4. give my repo permissions to the service principal
+5. build ci
+6.
+
+
+
+
+i need to build setup script for the argoCD namespace setup. steps:
+1. check that i have az, kubectl and helm in my wsl
+2. login to azure 
+3. aks get-credintials
+4. build argo namespace
+5. get the helm repo
+6. update it
+7. install it
+8.  

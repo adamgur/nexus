@@ -1,0 +1,300 @@
+# ArgoCD Development/POC Configuration
+# Optimized for small clusters (3 nodes) with limited applications
+
+## Global Configuration
+global:
+  # -- Default domain used by all components
+  domain: argocd.nexus.local
+  
+  # -- Default priority class for all components (empty = default priority)
+  priorityClassName: ""
+
+  # -- Default node selector for all components
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  # -- Default tolerations for all components
+  tolerations: []
+
+  # Default affinity preset for all components
+  affinity:
+    # -- Default pod anti-affinity rules. Either: `none`, `soft` or `hard`
+    podAntiAffinity: none  # No anti-affinity for small clusters
+    # Node affinity rules
+    nodeAffinity:
+      # -- Default node affinity rules. Either: `none`, `soft` or `hard`
+      type: none  # No specific node requirements
+
+  # -- Toggle and define pod-level security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    # Additional security hardening
+    seccompProfile:
+      type: RuntimeDefault
+    fsGroupChangePolicy: "OnRootMismatch"
+
+  # -- Network policy configuration
+  networkPolicy:
+    # -- Create NetworkPolicy objects for all components
+    # 🚨 CRITICAL: ENABLED for security - implements zero-trust networking
+    # ⚠️  IMPACT: Blocks all traffic by default, then allows only specific connections
+    # ⚠️  REQUIRES: AKS cluster with network policy support (Azure CNI + Network Policy addon)
+    # ⚠️  DEPLOYMENT: Must deploy in correct order or communication will fail
+    create: true
+    # Default deny all ingress traffic, then allow only necessary connections
+    defaultDenyIngress: true
+    # This will create policies to allow:
+    # - Application Gateway -> ArgoCD Server (ingress)
+    # - ArgoCD components -> Redis (internal)
+    # - ArgoCD components -> each other (internal)
+    # - Prometheus -> metrics endpoints (monitoring)
+    # - ArgoCD -> Git repositories (external)
+    # - ArgoCD -> Kubernetes API (management)
+
+## Argo CD Configuration
+configs:
+  cm:
+    # -- Argo CD's externally facing base URL
+    url: "https://argocd.nexus.local"
+    
+    # -- Enable local users
+    accounts.admin: apiKey,login
+    
+    # -- RBAC policy (Azure AD integrated)
+    # NOTE: You'll need Azure AD Groups for user access, not service principals
+    # Service principals are for automation - ArgoCD needs groups for human users
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, *, *, allow
+      p, role:admin, repositories, *, *, allow
+      p, role:developer, applications, get, */*, allow
+      p, role:developer, applications, sync, */*, allow
+      g, admin, role:admin
+      # Map Azure AD groups to roles (replace with your actual Azure AD group object IDs)
+      # You'll need to create these groups in Azure AD for your developers
+      g, "REPLACE_WITH_ADMIN_GROUP_OBJECT_ID", role:admin        # e.g., AKS-ArgoCD-Admins group
+      g, "REPLACE_WITH_DEVELOPER_GROUP_OBJECT_ID", role:developer # e.g., AKS-ArgoCD-Developers group
+
+    # Dex configuration for Azure AD
+    # NOTE: This needs an App Registration (not the same as your service principal)
+    dex.config: |
+      connectors:
+      - type: microsoft
+        id: microsoft
+        name: Microsoft Azure AD
+        config:
+          clientID: "REPLACE_WITH_ARGOCD_APP_REGISTRATION_CLIENT_ID"     # New App Registration for ArgoCD
+          clientSecret: "REPLACE_WITH_ARGOCD_APP_REGISTRATION_SECRET"    # Secret from the App Registration
+          redirectURI: "https://argocd.nexus.local/api/dex/callback"
+          tenant: "YOUR_AZURE_TENANT_ID"                                 # Your Azure tenant ID
+          groups:
+            - "REPLACE_WITH_ADMIN_GROUP_OBJECT_ID"     # Admin group object ID
+            - "REPLACE_WITH_DEVELOPER_GROUP_OBJECT_ID" # Developer group object ID
+
+  # -- Repository credentials and repositories can be configured here
+  repositories: {}
+
+## Application Controller
+controller:
+  # -- The number of application controller pods to run
+  replicas: 1  # Single replica for POC
+
+  # -- Enable dynamic cluster distribution (disabled for small setup)
+  dynamicClusterDistribution: false
+
+  # -- Pod Disruption Budget (disabled for POC)
+  pdb:
+    enabled: false
+
+  # -- Resource limits and requests (right-sized for POC)
+  resources:
+    limits:
+      cpu: 500m      # Much smaller than production
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # -- Metrics configuration (Full monitoring enabled)
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
+    serviceMonitor:
+      enabled: true  # Enable if you have Prometheus Operator
+      interval: 30s
+      namespace: monitoring  # Adjust if your Prometheus is in different namespace
+
+## Dex (OIDC) - Azure AD Integration
+dex:
+  enabled: false  # Enable for Azure AD authentication
+  
+  # Resource limits for Dex
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  # Dex metrics
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5558"
+        prometheus.io/path: "/metrics"
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      namespace: monitoring
+
+## Redis Configuration
+redis:
+  enabled: false  # Use external Redis or redis-ha
+
+## Redis HA (Lightweight setup)
+redis-ha:
+  enabled: true
+  # -- Redis HA with minimal resources
+  replica:
+    replicaCount: 2  # Just 2 replicas instead of 3
+  
+  ## Redis specific configuration
+  redis:
+    config:
+      save: '""'  # Disable persistence for POC (optional)
+  
+  ## HAProxy configuration
+  haproxy:
+    enabled: true
+    replicas: 1  # Single HAProxy instance
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+    # HAProxy metrics
+    metrics:
+      enabled: true
+  
+  # -- Redis resource limits (right-sized)
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  
+  # Redis metrics
+  exporter:
+    enabled: true  # Enable Redis metrics exporter
+    image: oliver006/redis_exporter
+    tag: v1.69.0
+
+## Server Configuration
+server:
+  # -- The number of server pods to run
+  replicas: 1  # Single replica for POC
+
+  # -- Horizontal Pod Autoscaler (disabled for POC)
+  autoscaling:
+    enabled: false
+
+  # -- Pod Disruption Budget (disabled for POC)
+  pdb:
+    enabled: false
+
+  # -- Resource limits and requests (right-sized)
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # -- Server metrics (Full monitoring)
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+        prometheus.io/path: "/metrics"
+    serviceMonitor:
+      enabled: true  # Enable if you have Prometheus Operator
+      interval: 30s
+      namespace: monitoring
+
+  # -- Ingress configuration
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: azure/application-gateway
+      appgw.ingress.kubernetes.io/ssl-redirect: "true"
+      appgw.ingress.kubernetes.io/backend-protocol: "https"
+    hostname: "argocd.nexus.local"
+    path: /
+    pathType: Prefix
+    tls: true
+
+## Repository Server
+repoServer:
+  # -- Repository server replicas
+  replicas: 1  # Single replica for POC
+
+  # -- Pod Disruption Budget (disabled)
+  pdb:
+    enabled: false
+
+  # -- Resource limits (right-sized)
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+  # -- Metrics (Full monitoring)
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+        prometheus.io/path: "/metrics"
+    serviceMonitor:
+      enabled: true  # Enable if you have Prometheus Operator
+      interval: 30s
+      namespace: monitoring
+
+## Notifications (Optional - can be disabled)
+notifications:
+  enabled: false  # Disable for POC
+
+## ApplicationSet Controller (Optional)
+applicationSet:
+  enabled: true  # Useful even for POC
+  replicas: 1
+  
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
